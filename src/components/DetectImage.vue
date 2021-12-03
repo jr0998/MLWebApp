@@ -105,9 +105,18 @@
       </li>
     </ul>
   </div>
+  <div v-for="pred in predictions" :key="pred.index">{{ pred.label }}: {{ pred.probability.toFixed(0) + '%' }}</div>
+<div v-if="!predictions.length">hmm.....</div>
 </template>
 
 <script>
+import * as cvstfjs from "customvision-tfjs";
+import labels from "raw-loader!../../public/models/labels.txt";
+
+labels: labels,
+model: null,
+predictions: []
+
 export default {
   name: "HelloWorld",
   props: {
@@ -129,11 +138,32 @@ computed: {
         } else return false;
     },
 },
+async mounted() {
+    this.image++;
+    //load up a new model
+    this.model = new cvstfjs.ClassificationModel();
+    await this.model.loadModelAsync("models/model.json");
+    //parse labels
+    this.labels = labels.split("\n").map(e => {
+      return e.trim();
+    });
+    //run prediction
+    this.predict();
+  },
 methods: {
     next() {
         this.image++;
         this.predictions = [];
         setTimeout(this.predict, 500);
+    },
+    async predict() {
+      //execute inference
+      let prediction = await this.model.executeAsync(this.$refs.img);
+      let label = prediction[0];
+      //build up a predictions object by parsing details to labels and probability
+      this.predictions = label.map((p, i) => {
+        return { index: i, label: this.labels[i], probability: p * 100 };
+      });
     },
 }
 };
